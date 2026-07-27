@@ -1,4 +1,4 @@
-# nokia-ospf-test-suite
+# ospf-test-suite
 
 Automated OSPF neighbor adjacency test suite for a small FRRouting lab.
 
