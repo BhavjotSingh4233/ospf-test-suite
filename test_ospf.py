@@ -8,8 +8,8 @@ This is a small automated version of a network regression test:
 instead of manually running `show ip ospf neighbor` on each router,
 this script does it for all of them and reports PASS/FAIL.
 
-Status: scaffolding only. Connection logic and test/reporting logic
-are added in later commits.
+Status: connection logic only. Pass/fail checking and reporting are
+added in a later commit.
 """
 
 import os
@@ -55,5 +55,15 @@ ROUTERS = [
 ]
 
 
+def get_ospf_neighbor_output(router):
+    """SSH into a router and run the OSPF neighbor check via vtysh."""
+    connection = ConnectHandler(**{k: v for k, v in router.items() if k != "name"})
+    output = connection.send_command("vtysh -c 'show ip ospf neighbor'")
+    connection.disconnect()
+    return output
+
+
 if __name__ == "__main__":
-    print("TODO: connect to routers and check OSPF neighbor state")
+    for router in ROUTERS:
+        print(f"--- {router['name']} ---")
+        print(get_ospf_neighbor_output(router))
