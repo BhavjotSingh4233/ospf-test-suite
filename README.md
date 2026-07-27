@@ -9,8 +9,12 @@ number of full neighbor adjacencies, reporting a PASS/FAIL result per router.
 
 ## Status
 
-Work in progress. Currently scaffolding the connection layer before adding
-the neighbor-check and reporting logic.
+Core OSPF neighbor adjacency test is complete: connects to all 3 routers,
+checks full neighbor counts, and prints a PASS/FAIL report per router plus
+an overall result.
+
+Planned next: a failover test that drops a router and confirms the
+remaining two reconverge.
 
 ## Requirements
 
