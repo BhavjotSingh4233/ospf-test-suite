@@ -22,6 +22,32 @@ Complete: neighbor adjacency test, failover/recovery test, a
 Actions CI that rebuilds the whole lab from a blank runner and runs the
 real test suite against it on every push.
 
+## Architecture
+
+```
+                 router-net  (172.20.0.0/24)
+
+        router1 -------------------- router2
+       172.20.0.2                  172.20.0.3
+            \                          /
+             \                        /
+              \                      /
+                     router3
+                   172.20.0.4
+
+  All 3 containers run FRRouting + OSPF, and are fully meshed
+  on one shared Docker network - each sees the other two as
+  direct OSPF neighbors.
+
+  test_ospf.py (netmiko/SSH) --> router1:2201
+                              --> router2:2202
+                              --> router3:2203
+```
+
+Each router is a container built from the custom `frr-ospf-lab` image
+(see `lab/`), with SSH and OSPF configuration baked in at build time
+rather than configured live after the container starts.
+
 ## Requirements
 
 - Docker
@@ -39,6 +65,30 @@ python3 test_ospf.py
 previous router1/2/3 containers and router-net network first, so it
 always produces a clean lab. It's what CI runs, and it's also the
 supported way to (re)build the lab locally.
+
+## Sample output
+
+```
+=== OSPF Neighbor Test Report ===
+
+[PASS] router1: 2 full neighbor(s) (expected 2)
+[PASS] router2: 2 full neighbor(s) (expected 2)
+[PASS] router3: 2 full neighbor(s) (expected 2)
+
+----------------------------------
+OVERALL: PASS
+----------------------------------
+
+=== Failover & Recovery Test ===
+
+[PASS] Baseline (all routers up): 2 full neighbor(s) (expected 2)
+[PASS] After disconnecting router3: 1 full neighbor(s) (expected 1)
+[PASS] After reconnecting router3: 2 full neighbor(s) (expected 2)
+
+----------------------------------
+FAILOVER TEST: PASS
+----------------------------------
+```
 
 ## How the lab is built
 
@@ -58,3 +108,13 @@ network-isolated test container with no real data or external exposure
 (published only to `localhost`, torn down/rebuilt on every CI run) - not
 a credential meant to protect anything. Don't reuse this password, or
 this image, for anything that isn't a throwaway lab.
+
+## Next steps
+
+- Parameterize the topology (currently fixed at 3 routers) so the lab
+  can be resized without editing `setup_lab.sh` directly.
+- Generate a random SSH password per run instead of the hardcoded one,
+  passed via `docker build --build-arg` and `ROUTER_SSH_PASSWORD`, so
+  nothing sensitive-looking sits in git even though it's low-risk here.
+- Add a second routing protocol (e.g. BGP) to compare convergence and
+  failover behavior against OSPF.
