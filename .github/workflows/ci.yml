@@ -1,0 +1,53 @@
+name: OSPF lab CI
+
+# Rebuilds the whole 3-router FRR/OSPF lab from scratch on a fresh
+# GitHub-hosted runner and runs the real test suite against it - this is
+# not a symbolic/lint-only check, it's the same setup_lab.sh +
+# test_ospf.py that work locally, run against real Docker containers.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ospf-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install netmiko
+
+      - name: Confirm Docker is available
+        run: docker version
+
+      - name: Build and boot the lab (image build, network, containers, wait for OSPF convergence)
+        run: ./setup_lab.sh
+
+      - name: Run OSPF neighbor + failover/recovery test suite
+        run: python3 test_ospf.py
+
+      - name: Dump router state for debugging
+        if: failure()
+        run: |
+          for router in router1 router2 router3; do
+            echo "::group::$router - docker logs"
+            docker logs "$router" || true
+            echo "::endgroup::"
+            echo "::group::$router - OSPF neighbor state"
+            docker exec "$router" vtysh -c "show ip ospf neighbor" || true
+            echo "::endgroup::"
+          done
+          echo "::group::docker ps"
+          docker ps -a
+          echo "::endgroup::"
